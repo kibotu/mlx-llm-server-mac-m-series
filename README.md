@@ -1,20 +1,19 @@
 # MLX Server
 
-> 🍎 Native Apple Silicon ML Inference Server for Qwen 3.6.35B
+> 🍎 Local LLM inference server for Qwen 3.6.35B
 
-Lightning-fast local LLM inference powered by Apple's MLX framework. Run the Qwen 3.6.35B 4bit quantized model directly on your Mac.
+Run Qwen 3.6.35B locally on your Mac with Apple's MLX framework. It's private, it's local, and it works. Don't expect to beat SOTA speeds, but it'll chat while you make coffee.
 
 ---
 
 ## ✨ Features
 
-- **🚀 Blazing Fast Inference** - Native MLX kernels optimized for Apple Silicon M1/M2/M3/M4
-- **💾 Memory Efficient** - 4-bit quantization reduces 35B model to ~18GB
-- **🔒 Privacy First** - All inference happens locally on your machine
-- **⚡ One-Command Start** - Single script handles setup, downloads, and server
-- **♻️ Idempotent & Robust** - Safe to run anytime, auto-restarts on crash
-- **🛡️ Self-Healing** - Terminates old instances, restarts server on failure
-- **⚡ M2 Max Optimized** - Leveraging hardware acceleration
+- **Local & Private** - All inference happens on your machine. Your data never leaves your Mac.
+- **Reasonably Fast** - 20-35 tokens/sec on M2 Max. Good enough for casual use.
+- **One-Command Start** - Single script handles setup, downloads, and server.
+- **Self-Healing** - Terminates old instances, restarts server on failure.
+- **OpenAI-Compatible API** - Works with existing tools and clients.
+- **M2 Max Optimized** - Leveraging hardware acceleration
 
 ---
 
@@ -32,8 +31,6 @@ Lightning-fast local LLM inference powered by Apple's MLX framework. Run the Qwe
 
 ```bash
 cd mlx-server
-
-# One command - everything it does automatically:
 ./run.sh
 ```
 
@@ -45,6 +42,8 @@ That's it. The script will:
 4. ✅ Wait for port to release
 5. ✅ Start the server on port 5001
 6. ✅ Auto-restart if it crashes
+
+**Note:** First run will take ~15-30 seconds. The model is ~18GB, so expect to wait a bit.
 
 ---
 
@@ -103,7 +102,7 @@ pkill -f "mlx_lm.server"
 
 ## ⚡ Performance (M2 Max)
 
-Estimated performance on M2 Max (16-core GPU, 40GB unified memory):
+Real-world performance on M2 Max (16-core GPU, 40GB unified memory):
 
 | Metric | Value |
 |--------|-------|
@@ -113,6 +112,8 @@ Estimated performance on M2 Max (16-core GPU, 40GB unified memory):
 | **Memory Usage** | 24-28GB VRAM |
 | **Startup Time** | ~15-30 seconds |
 | **Concurrent Requests** | 2-4 (depends on memory) |
+
+**Reality check:** This isn't *lightning* fast. It's... adequately fast. Like, "writing emails while waiting for coffee" fast. Don't expect it to beat SOTA models on speed benchmarks. It's good for local, it's private, and sometimes that's more than enough.
 
 ---
 
