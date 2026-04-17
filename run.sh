@@ -6,11 +6,15 @@
 set -euo pipefail
 
 # Configuration
-readonly MODEL="${MODEL:-mlx-community/Qwen3.6-35B-A3B-4bit}"
+readonly MODEL="${MODEL:-mlx-community/Qwen3.5-9B-MLX-4bit}"
+readonly MODEL_Q4_K_M="${MODEL:-mlx-community/Qwen3.5-9B-MLX-4bit}"
+readonly MODEL_Q4_K_M_PATTERN="*Q4_K_M*"
+readonly MODEL_Q4_K_M_NAME="Qwen3.5-9B Q4_K_M"
 readonly PORT="${PORT:-5001}"
 readonly TEMP="${TEMP:-0.7}"
 readonly PROMPT_CONC="${PROMPT_CONC:-2}"
 readonly DECODE_CONC="${DECODE_CONC:-2}"
+readonly CONTEXT_WINDOW="${CONTEXT_WINDOW:-65536}"
 readonly MAX_RETRIES=5
 readonly RETRY_DELAY=5
 
@@ -18,6 +22,13 @@ readonly RETRY_DELAY=5
 readonly CACHE_DIR="$HOME/.cache/mlx-community"
 readonly MODEL_CACHE="$CACHE_DIR/$MODEL"
 readonly LOG_FILE="$HOME/.cache/mlx-server.log"
+
+# Available models
+declare -a AVAILABLE_MODELS=(
+    "mlx-community/Qwen3.5-9B-GGUF:Q4_K_M:Qwen3.5-9B Q4_K_M"
+    "mlx-community/Qwen3.5-9B-GGUF:Q5_K_M:Qwen3.5-9B Q5_K_M"
+    "mlx-community/Qwen3.6-35B-A3B-4bit:default:Qwen3.6-35B A3B"
+)
 
 # Logging function
 log() {
@@ -106,15 +117,14 @@ download_model() {
     
     log_info "Fetching model files from HuggingFace..."
     
-    # Download all required files
+    # Download MLX model files
     local required_files=(
-        "model-00001-of-00004.safetensors"
-        "model-00002-of-00004.safetensors"
-        "model-00003-of-00004.safetensors"
-        "model-00004-of-00004.safetensors"
+        "model-00001-of-00003.safetensors"
+        "model-00002-of-00003.safetensors"
+        "model-00003-of-00003.safetensors"
         "config.json"
-        "tokenizer_config.json"
         "tokenizer.json"
+        "tokenizer_config.json"
     )
     
     for file in "${required_files[@]}"; do
@@ -167,6 +177,7 @@ start_server() {
     log_info "Temp: $TEMP"
     log_info "Prompt concurrency: $PROMPT_CONC"
     log_info "Decode concurrency: $DECODE_CONC"
+    log_info "Context window: $CONTEXT_WINDOW"
     log_info "API: http://localhost:$PORT"
     log_info "API generate: http://localhost:$PORT/api/generate"
     
