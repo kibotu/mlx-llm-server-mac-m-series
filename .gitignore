@@ -168,3 +168,14 @@ $RECYCLE.BIN/
 *.lnk
 
 # End of https://www.toptal.com/developers/gitignore/api/windows,macos,visualstudiocode,jetbrains+all
+
+### MLX Server ###
+# Virtual environment
+.venv/
+
+# Model cache
+.cache/mlx-community/
+
+# Python cache
+__pycache__/
+*.pyc

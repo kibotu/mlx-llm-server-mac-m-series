@@ -1,20 +1,20 @@
 # MLX Server
 
-> 🍎 Native Apple Silicon ML Inference Server for Qwen 3.6.35B A3B
+> 🍎 Native Apple Silicon ML Inference Server for Qwen 3.6.35B
 
-Lightning-fast local LLM inference powered by Apple's MLX framework. Run the Qwen 3.6.35B 4bit quantized model directly on your Mac with zero external dependencies.
+Lightning-fast local LLM inference powered by Apple's MLX framework. Run the Qwen 3.6.35B 4bit quantized model directly on your Mac.
 
 ---
 
 ## ✨ Features
 
-- **🚀 Blazing Fast Inference** - Native MLX kernels optimized for Apple Silicon
-- **💾 Memory Efficient** - 4-bit quantization reduces model size to ~22GB
+- **🚀 Blazing Fast Inference** - Native MLX kernels optimized for Apple Silicon M1/M2/M3/M4
+- **💾 Memory Efficient** - 4-bit quantization reduces 35B model to ~18GB
 - **🔒 Privacy First** - All inference happens locally on your machine
-- **🎯 Easy Setup** - One-command installation with `uv`
-- **♻️ Idempotent Scripts** - Safe to run multiple times
-- **🛡️ Robust Server** - Auto-terminates existing instances
-- **⚡ M2/M3/M4 Max Optimized** - Leveraging hardware acceleration
+- **⚡ One-Command Start** - Single script handles setup, downloads, and server
+- **♻️ Idempotent & Robust** - Safe to run anytime, auto-restarts on crash
+- **🛡️ Self-Healing** - Terminates old instances, restarts server on failure
+- **⚡ M2 Max Optimized** - Leveraging hardware acceleration
 
 ---
 
@@ -28,60 +28,71 @@ Lightning-fast local LLM inference powered by Apple's MLX framework. Run the Qwe
 
 ---
 
-## 📦 Installation
-
-### Quick Start
+## 🚀 Quick Start
 
 ```bash
-# Clone the repository
-git clone https://github.com/kibotu/mlx-server.git
 cd mlx-server
 
-# Run setup (downloads model & dependencies)
-python3 setup.py
-
-# Start the server
-python3 run.py
+# One command - everything it does automatically:
+./run.sh
 ```
 
-### Manual Installation
+That's it. The script will:
 
-```bash
-# Install uv if needed
-pip install uv
-
-# Install Python dependencies
-uv pip install mlx-lm huggingface_hub
-
-# Download the Qwen 3.6.35B A3B 4bit model
-uv run python -c "
-import huggingface_hub
-hf = huggingface_hub.HfApi()
-hf.hf_hub_download(repo_id='mlx-community/Qwen3.6-35B-A3B-4bit', filename='model-00001-of-00002.safetensors')
-hf.hf_hub_download(repo_id='mlx-community/Qwen3.6-35B-A3B-4bit', filename='model-00002-of-00002.safetensors')
-hf.hf_hub_download(repo_id='mlx-community/Qwen3.6-35B-A3B-4bit', filename='config.json')
-hf.hf_hub_download(repo_id='mlx-community/Qwen3.6-35B-A3B-4bit', filename='tokenizer.json')
-"
-```
+1. ✅ Create virtual environment & install dependencies
+2. ✅ Download model with progress bar
+3. ✅ Kill any existing server instances
+4. ✅ Start the server on port 5000
+5. ✅ Auto-restart if it crashes
 
 ---
 
 ## 🏃 Running the Server
 
-### Start Server
+### One Command
 
 ```bash
-python3 run.py
+./run.sh
 ```
 
-The server will start at `http://localhost:5000` with the following configuration:
+### Custom Configuration
 
-- **Model**: Qwen 3.6.35B A3B 4bit
-- **Port**: 5000
-- **Max Tokens**: 4096
-- **Sequence Length**: 8192
+```bash
+MODEL=mlx-community/Qwen3.6-35B-A3B-4bit \
+PORT=5000 \
+TEMP=0.7 \
+PROMPT_CONC=2 \
+DECODE_CONC=2 \
+./run.sh
+```
 
-### API Usage
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MODEL` | `mlx-community/Qwen3.6-35B-A3B-4bit` | Model to load |
+| `PORT` | `5000` | Server port |
+| `TEMP` | `0.7` | Sampling temperature |
+| `PROMPT_CONC` | `2` | Prompt concurrency |
+| `DECODE_CONC` | `2` | Decode concurrency |
+
+---
+
+## 🔗 API Usage
+
+### Server URL
+
+```
+http://localhost:5000
+```
+
+### Generate Endpoint
+
+```
+http://localhost:5000/api/generate
+```
+
+### Example Request
 
 ```bash
 curl -X POST http://localhost:5000/api/generate \
@@ -93,12 +104,36 @@ curl -X POST http://localhost:5000/api/generate \
   }'
 ```
 
-### Stop Server
+### Example with Streaming
 
 ```bash
-# Graceful shutdown (Ctrl+C)
-# Or kill process
+curl -X POST http://localhost:5000/api/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "Write a haiku about AI",
+    "max_tokens": 50,
+    "stream": true
+  }'
+```
+
+---
+
+## 🛑 Stopping the Server
+
+### Graceful Shutdown
+
+Press `Ctrl+C` in the terminal where `./run.sh` is running.
+
+### Force Kill
+
+```bash
 lsof -ti:5000 | xargs -r kill -9
+```
+
+### Kill All MLX Server Processes
+
+```bash
+pkill -f "mlx_lm.server"
 ```
 
 ---
@@ -109,33 +144,31 @@ Estimated performance on M2 Max (16-core GPU, 40GB unified memory):
 
 | Metric | Value |
 |--------|-------|
-| **Model Size (4-bit)** | ~22GB |
+| **Model Size (4-bit)** | ~18GB |
 | **Inference Speed** | 20-35 tokens/sec |
 | **Context Window** | 8K tokens |
 | **Memory Usage** | 24-28GB VRAM |
 | **Startup Time** | ~15-30 seconds |
-
-*Actual performance varies based on model variant and workload.*
+| **Concurrent Requests** | 2-4 (depends on memory) |
 
 ---
 
-## 🎯 Architecture
+## 🎯 How It Works
 
 ```
 ┌─────────────────────────────────────┐
-│         MLX Server                  │
-├─────────────────────────────────────┤
-│  • FastAPI REST API                 │
-│  • Uvicorn ASGI server              │
-│  • Async request handling           │
-│  • Streaming responses              │
+│         ./run.sh                    │
+│  • Downloads models if missing     │
+│  • Installs dependencies           │
+│  • Terminates old instances        │
+│  • Restarts on crash (retry x5)    │
 └─────────────────────────────────────┘
                     ↓
 ┌─────────────────────────────────────┐
 │        Qwen 3.6.35B A3B            │
 │  • 4-bit AWQ quantization          │
 │  • 35B parameters                  │
-│  • Activated: 3B params            │
+│  • 3B activated (MoE)              │
 └─────────────────────────────────────┘
                     ↓
 ┌─────────────────────────────────────┐
@@ -148,47 +181,76 @@ Estimated performance on M2 Max (16-core GPU, 40GB unified memory):
 
 ---
 
-## 🔧 Configuration
-
-Edit `run.py` to customize:
-
-```python
-# Port
-"--port", "5000",
-
-# Max tokens
-"--max-tokens", "4096",
-
-# Sequence length
-"--max-sequence-length", "8192",
-```
-
----
-
 ## 📁 Project Structure
 
 ```
 mlx-server/
-├── setup.py      # Download & install dependencies
-├── run.py        # Start the server
+├── run.sh        # 🎯 Single entry point - does everything
+├── uv.lock       # uv lockfile
+├── pyproject.toml # Project configuration
 └── README.md     # This file
 ```
 
 ---
 
-## 🧪 Testing
+## 📝 Logs
+
+All server activity is logged to:
+
+```
+$HOME/.cache/mlx-server.log
+```
+
+Check for troubleshooting or debugging.
+
+---
+
+## 🧪 Testing Inference
 
 ```bash
-# Test inference
-python3 -c "
+# Test inference directly (before starting server)
+uv run python3 -c '
 from mlx_lm import generate
 response = generate(
-    model_path='/Users/yourname/.cache/mlx-community/mlx-community/Qwen3.6-35B-A3B-4bit',
-    prompt='Hello, how are you?',
+    model_path="mlx-community/Qwen3.6-35B-A3B-4bit",
+    prompt="Hello, how are you?",
     max_tokens=50
 )
 print(response)
-"
+'
+```
+
+---
+
+## 🔍 Troubleshooting
+
+### Server won't start
+
+```bash
+# Check logs
+tail -n 50 ~/.cache/mlx-server.log
+
+# Check memory
+sudo vmstat
+```
+
+### Port already in use
+
+The script auto-terminates old instances. If it fails:
+
+```bash
+# Manual kill
+lsof -ti:5000 | xargs -r kill -9
+
+# Or use different port
+PORT=5001 ./run.sh
+```
+
+### Out of memory
+
+```bash
+# Try smaller batch size
+PROMPT_CONC=1 DECODE_CONC=1 ./run.sh
 ```
 
 ---
@@ -204,6 +266,7 @@ MIT License - feel free to use, modify, and distribute.
 - [MLX](https://github.com/ml-explore/mlx) - Apple's machine learning framework
 - [Qwen](https://huggingface.co/Qwen) - Alibaba's large language model
 - [mlx-community](https://huggingface.co/mlx-community) - Community quantized models
+- [uv](https://github.com/astral-sh/uv) - Fast Python package installer
 
 ---
 
