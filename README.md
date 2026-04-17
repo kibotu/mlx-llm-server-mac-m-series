@@ -56,34 +56,27 @@ That's it. The script will:
 http://localhost:5001
 ```
 
-### Generate Endpoint
+### API Endpoints (OpenAI-compatible)
 
 ```
-http://localhost:5001/api/generate
+http://localhost:5001/v1/chat/completions
+http://localhost:5001/v1/completions
 ```
 
-### Example Request
+### Example: Chat Completion
 
 ```bash
-curl -X POST http://localhost:5001/api/generate \
+curl -X POST http://localhost:5001/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -d '{
-    "prompt": "What is the capital of France?",
-    "max_tokens": 256,
-    "temperature": 0.7
-  }'
+  -d '{"model":"mlx-community/Qwen3.6-35B-A3B-4bit","messages":[{"role":"user","content":"What is the capital of France?"}],"max_tokens":256,"temperature":0.7}'
 ```
 
-### Example with Streaming
+### Example: Streaming Chat
 
 ```bash
-curl -X POST http://localhost:5001/api/generate \
+curl -X POST http://localhost:5001/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -d '{
-    "prompt": "Write a haiku about AI",
-    "max_tokens": 50,
-    "stream": true
-  }'
+  -d '{"model":"mlx-community/Qwen3.6-35B-A3B-4bit","messages":[{"role":"user","content":"Write a haiku about AI"}],"max_tokens":50,"stream":true}'
 ```
 
 ---
