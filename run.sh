@@ -7,7 +7,7 @@ set -euo pipefail
 
 # Configuration
 readonly MODEL="${MODEL:-mlx-community/Qwen3.6-35B-A3B-4bit}"
-readonly PORT="${PORT:-5000}"
+readonly PORT="${PORT:-5001}"
 readonly TEMP="${TEMP:-0.7}"
 readonly PROMPT_CONC="${PROMPT_CONC:-2}"
 readonly DECODE_CONC="${DECODE_CONC:-2}"
@@ -47,11 +47,46 @@ port_in_use() {
 # Kill process on port
 kill_port() {
     local pids
+    local max_attempts=30
+    local attempt=1
+    
     pids=$(lsof -ti:"$PORT" 2>/dev/null || true)
     if [ -n "$pids" ]; then
-        log_warn "Terminating existing server on port $PORT..."
-        kill -9 $pids 2>/dev/null || true
-        sleep 1
+        log_warn "Terminating existing server on port $PORT (PIDs: $pids)..."
+        
+        while [ $attempt -le $max_attempts ]; do
+            # Kill all processes on this port
+            for pid in $pids; do
+                kill -9 "$pid" 2>/dev/null || true
+            done
+            
+            # Wait for port to be released
+            sleep 1
+            
+            # Re-check for processes
+            pids=$(lsof -ti:"$PORT" 2>/dev/null || true)
+            if [ -z "$pids" ]; then
+                log_info "Port $PORT is now free"
+                return 0
+            fi
+            
+            attempt=$((attempt + 1))
+            if [ $attempt -le $max_attempts ]; then
+                log_warn "Waiting for port $PORT to release (attempt $attempt/$max_attempts, remaining PIDs: $pids)..."
+            fi
+        done
+        
+        # Final aggressive cleanup - kill any remaining by process name
+        log_warn "Final cleanup - searching for mlx_lm processes..."
+        local mlx_pids
+        mlx_pids=$(pgrep -f "mlx_lm.server" 2>/dev/null || true)
+        for pid in $mlx_pids; do
+            log_warn "Killing MLX process $pid"
+            kill -9 "$pid" 2>/dev/null || true
+            sleep 0.5
+        done
+        
+        log_warn "Port $PORT still in use after cleanup attempts"
     fi
 }
 
@@ -159,6 +194,12 @@ main() {
     # Kill any existing server
     kill_port
     
+    # Ensure port is free (safety check)
+    if lsof -ti:"$PORT" > /dev/null 2>&1; then
+        log_warn "Port $PORT still occupied, waiting 3s..."
+        sleep 3
+    fi
+    
     # Start server with crash restart logic
     for ((i = 1; i <= MAX_RETRIES; i++)); do
         log_info "Server start attempt $i/$MAX_RETRIES..."
@@ -175,7 +216,9 @@ main() {
             log_info "Server running on port $PORT (PID: $SERVER_PID)"
             log_info "API available at http://localhost:$PORT"
             log_info "Generate endpoint: http://localhost:$PORT/api/generate"
-            exit 0
+            log_info "Keep this script running to keep server alive"
+            # Keep script alive to maintain server process
+            wait $SERVER_PID
         fi
         
         log_warn "Server crashed, will retry in $RETRY_DELAY seconds..."

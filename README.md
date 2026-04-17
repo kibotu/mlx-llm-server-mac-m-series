@@ -41,9 +41,10 @@ That's it. The script will:
 
 1. ✅ Create virtual environment & install dependencies
 2. ✅ Download model with progress bar
-3. ✅ Kill any existing server instances
-4. ✅ Start the server on port 5000
-5. ✅ Auto-restart if it crashes
+3. ✅ Kill any existing server instances (with retry)
+4. ✅ Wait for port to release
+5. ✅ Start the server on port 5001
+6. ✅ Auto-restart if it crashes
 
 ---
 
@@ -52,19 +53,19 @@ That's it. The script will:
 ### Server URL
 
 ```
-http://localhost:5000
+http://localhost:5001
 ```
 
 ### Generate Endpoint
 
 ```
-http://localhost:5000/api/generate
+http://localhost:5001/api/generate
 ```
 
 ### Example Request
 
 ```bash
-curl -X POST http://localhost:5000/api/generate \
+curl -X POST http://localhost:5001/api/generate \
   -H "Content-Type: application/json" \
   -d '{
     "prompt": "What is the capital of France?",
@@ -76,7 +77,7 @@ curl -X POST http://localhost:5000/api/generate \
 ### Example with Streaming
 
 ```bash
-curl -X POST http://localhost:5000/api/generate \
+curl -X POST http://localhost:5001/api/generate \
   -H "Content-Type: application/json" \
   -d '{
     "prompt": "Write a haiku about AI",
@@ -96,7 +97,7 @@ Press `Ctrl+C` in the terminal where `./run.sh` is running.
 ### Force Kill
 
 ```bash
-lsof -ti:5000 | xargs -r kill -9
+lsof -ti:5001 | xargs -r kill -9
 ```
 
 ### Kill All MLX Server Processes
