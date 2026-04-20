@@ -1,5 +1,7 @@
 # MLX Server
 
+[![Medium](https://img.shields.io/badge/Medium-@kibotu-000000?style=flat-square&logo=medium&logoColor=white)](https://medium.com/@kibotu/two-paths-to-local-llm-servers-windows-nvidia-vs-mac-apple-silicon-1e28d606f600?sk=a5d9989d124d7f9b844927f0f545ed09)
+
 > 🍎 Local LLM inference server for Qwen models on Apple Silicon
 
 Run Qwen models locally on your Mac with Apple's MLX framework. It's private, it's local, and it works. Don't expect to beat SOTA speeds, but it'll chat while you make coffee.
