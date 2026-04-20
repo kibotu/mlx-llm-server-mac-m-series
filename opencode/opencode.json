@@ -1,0 +1,86 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "context-mode": {
+      "type": "local",
+      "command": ["context-mode"]
+    }
+  },
+  "plugin": ["context-mode"],
+  "provider": {
+    "local-mlx": {
+      "name": "MLX (Local)",
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "http://127.0.0.1:8898/v1",
+        "timeout": 180000,
+        "chunkTimeout": 30000
+      },
+      "models": {
+        "mlx-community/Qwen3.5-9B-MLX-4bit": {
+          "name": "Qwen3.5-9B-MLX-4bit",
+          "limit": {
+            "context": 98304,
+            "output": 6000
+          }
+        }
+      }
+    }
+  },
+  "model": "local-mlx/Qwen3.5-9B-MLX-4bit",
+  "small_model": "local-mlx/Qwen3.5-9B-MLX-4bit",
+  "snapshot": false,
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "reserved": 16384
+  },
+  "tools": {
+    "write": true,
+    "read": true,
+    "bash": true,
+    "edit": true,
+    "browser": true
+  },
+  "watcher": {
+    "ignore": [
+      "node_modules/**",
+      "dist/**",
+      "build/**",
+      ".git/**",
+      ".next/**",
+      "venv/**",
+      "env/**"
+    ]
+  },
+  "autoupdate": false,
+  "permission": {
+    "bash": {
+      "*": "ask",
+      "git *": "deny",
+      "npm *": "allow",
+      "rm *": "deny",
+      "grep *": "allow",
+      "find *": "allow",
+      "xargs *": "allow",
+      "head *": "allow",
+      "tail *": "allow",
+      "cat *": "allow",
+      "sed *": "allow",
+      "ls *": "allow",
+      "gradlew *": "allow",
+      "adb *": "allow",
+      "echo *": "allow",
+      "curl *": "allow",
+      "wget *": "allow",
+      "sort *": "allow",
+      "uniq *": "allow",
+      "hexdump *": "allow",
+      "mkdir *": "allow",
+      "mv *": "allow",
+      "wc *": "allow"
+    },
+    "edit": "allow",
+    "write": "allow"
+  }
+}
