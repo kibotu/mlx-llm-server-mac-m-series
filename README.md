@@ -9,7 +9,7 @@ Run Qwen models locally on your Mac with Apple's MLX framework. It's private, it
 ## ✨ Features
 
 - **Local & Private** - All inference happens on your machine. Your data never leaves your Mac.
-- **Reasonably Fast** - 20-35 tokens/sec on M2 Max. Good enough for casual use.
+- **Reasonably Fast** - ~60 tokens/sec on M2 Max (32GB RAM). Good enough for casual use.
 - **One-Command Start** - Single script handles setup, downloads, and server.
 - **Self-Healing** - Terminates old instances, restarts server on failure.
 - **OpenAI-Compatible API** - Works with existing tools and clients.
@@ -312,7 +312,7 @@ Real-world performance on M2 Max (16-core GPU, 32GB unified memory):
 | Metric | Value |
 |--------|-------|
 | **Model Size (4-bit)** | ~6GB |
-| **Inference Speed** | **61.7 tokens/sec** (Qwen3.5-9B Q4) |
+| **Inference Speed** | **~60 tokens/sec** (Qwen3.5-9B Q4) |
 | **Context Window** | 64k tokens (default) |
 | **Memory Usage** | 8-12GB VRAM |
 | **Startup Time** | ~10-20 seconds |
