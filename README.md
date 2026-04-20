@@ -46,7 +46,7 @@ This uses the **9B parameter model** with 4-bit quantization (~6GB). The script 
 2. ✅ Download model with progress bar
 3. ✅ Kill any existing server instances (with retry)
 4. ✅ Wait for port to release
-5. ✅ Start the server on port 5001
+5. ✅ Start the server on port 8898
 6. ✅ Auto-restart if it crashes
 
 **Note:** First run will take ~15-30 seconds. The model is ~6GB, so it's fast to download.
@@ -169,7 +169,7 @@ CONTEXT_WINDOW=1048576 ./run.sh
 
 2. **Configure OpenCode to use your MLX Server**
 
-   Create or edit `~/.config/opencode/opencode.json`:
+   Create or edit [~/.config/opencode/opencode.json](opencode/opencode.json):
 
 ```json
 {
@@ -357,46 +357,7 @@ In your OpenCode config (`~/.config/opencode/opencode.json`):
   "compaction": {
     "auto": true,
     "prune": true,
-    "reserved": 5000
-  }
-}
-```
-
-- **`auto`**: Automatically compact when context is full (`true` by default)
-- **`prune`**: Remove old tool outputs to save tokens (`true` by default)
-- **`reserved`**: Token buffer for compaction (default: 10000). This keeps enough window to avoid overflow during compaction
-
-**Why reserved tokens matter:** Without a reserved buffer, compaction might try to delete messages right at the edge, causing overflow issues. The reserved buffer ensures you have breathing room.
-
----
-
-## ⚡ Performance (M2 Max)
-
-Real-world performance on M2 Max (16-core GPU, 40GB unified memory):
-
-### Understanding Context Window
-
-The context window determines how much text the model can "see" at once. Default is **64k tokens**.
-
-```bash
-# Set custom context window
-CONTEXT_WINDOW=32768 ./run.sh  # 32k
-CONTEXT_WINDOW=131072 ./run.sh # 128k
-CONTEXT_WINDOW=1048576 ./run.sh # 1M
-```
-
-### Auto Compact with Reserved Tokens
-
-Auto compact keeps your conversation history manageable by removing old messages when the context window is full.
-
-In your OpenCode config (`~/.config/opencode/opencode.json`):
-
-```json
-{
-  "compaction": {
-    "auto": true,
-    "prune": true,
-    "reserved": 5000
+    "reserved": 16384
   }
 }
 ```
@@ -418,7 +379,7 @@ Press `Ctrl+C` in the terminal where `./run.sh` is running.
 ### Force Kill
 
 ```bash
-lsof -ti:5001 | xargs -r kill -9
+lsof -ti:8898 | xargs -r kill -9
 ```
 
 ### Kill All MLX Server Processes
@@ -472,7 +433,7 @@ pkill -f "Qwen3.6-35B"
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `MODEL` | `mlx-community/Qwen3.5-9B-MLX-4bit` | Model to load |
-| `PORT` | `5001` | Server port |
+| `PORT` | `8898` | Server port |
 | `TEMP` | `0.7` | Sampling temperature |
 | `PROMPT_CONC` | `2` | Prompt concurrency |
 | `DECODE_CONC` | `2` | Decode concurrency |
@@ -501,36 +462,8 @@ MODEL=mlx-community/Qwen3.5-9B-MLX-4bit TEMP=0.5 CONTEXT_WINDOW=32768 ./run.sh
 - [MLX](https://github.com/ml-explore/mlx) - Apple's machine learning framework
 - [Qwen](https://huggingface.co/Qwen) - Alibaba's large language models
 - [mlx-community](https://huggingface.co/mlx-community) - Community MLX-optimized models
-- [unsloth](https://github.com/unslothai/unsloth) - GGUF quantization for Qwen
 - [uv](https://github.com/astral-sh/uv) - Fast Python package installer
 - [OpenCode](https://opencode.ai) - Local LLM IDE integration
-
----
-
-## 📦 Models
-
-### Qwen3.5-9B-MLX-4bit (Default)
-
-- **Repo:** `mlx-community/Qwen3.5-9B-MLX-4bit`
-- **Parameters:** 9 billion
-- **Quantization:** 4-bit AWQ (MLX format)
-- **Size:** ~6GB
-- **Best for:** Fast inference, limited resources
-
-### Qwen3.6-35B-A3B-4bit
-
-- **Repo:** [mlx-community/Qwen3.6-35B-A3B-4bit](https://huggingface.co/mlx-community/Qwen3.6-35B-A3B-4bit)
-- **Parameters:** 35 billion (MoE - 3B active)
-- **Quantization:** 4-bit AWQ
-- **Size:** ~18GB
-- **Best for:** Complex reasoning, more capable
-
-### Qwen3.5-9B-GGUF (Unsloth)
-
-- **Repo:** `unsloth/Qwen3.5-9B-GGUF`
-- **Quantizations:** Q4_K_M, Q5_K_M, and more
-- **Format:** GGUF (compatible with llama.cpp)
-- **Best for:** Maximum compatibility, cross-platform
 
 ---
 
@@ -543,34 +476,6 @@ Contributions welcome! Please open issues and pull requests.
 ## 📞 Support
 
 Having trouble? Open an issue on GitHub.
-
----
-
-## 📚 Configuration Reference
-
-### OpenCode Config (`~/.config/opencode/opencode.json`)
-
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "provider": {
-    "custom-mlx": {
-      "type": "openai",
-      "options": {
-        "baseURL": "http://localhost:8898",
-        "apiKey": "local"
-      }
-    }
-  },
-  "model": "custom-mlx/Qwen3.5-9B-MLX-4bit",
-  "small_model": "custom-mlx/gemma-4-e4b-it-4bit",
-  "compaction": {
-    "auto": true,
-    "prune": true,
-    "reserved": 5000
-  }
-}
-```
 
 **Key configuration options:**
 
