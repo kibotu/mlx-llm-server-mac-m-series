@@ -303,16 +303,16 @@ The `model` and `small_model` settings control which models OpenCode uses:
 
 ---
 
-## ⚡ Performance (M2 Max)
+## ⚡ Performance (M2 Max, 32GB RAM)
 
-Real-world performance on M2 Max (16-core GPU, 40GB unified memory):
+Real-world performance on M2 Max (16-core GPU, 32GB unified memory):
 
-### 9B Model (Default)
+### 9B Model (Default) - Qwen3.5-9B-MLX-4bit
 
 | Metric | Value |
 |--------|-------|
 | **Model Size (4-bit)** | ~6GB |
-| **Inference Speed** | 40-60 tokens/sec |
+| **Inference Speed** | **61.7 tokens/sec** (Qwen3.5-9B Q4) |
 | **Context Window** | 64k tokens (default) |
 | **Memory Usage** | 8-12GB VRAM |
 | **Startup Time** | ~10-20 seconds |
