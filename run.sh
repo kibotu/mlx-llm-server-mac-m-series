@@ -1,246 +1,109 @@
 #!/usr/bin/env bash
-# run.sh - Unified script for MLX server
-# Downloads models if missing, starts server, restarts on crash
-# Idempotent, robust, and production-ready
+# MLX server runner - downloads models, starts server, recovers from crashes
 
 set -euo pipefail
 
-# Configuration
-readonly MODEL="${MODEL:-mlx-community/Qwen3.5-9B-MLX-4bit}"
-readonly MODEL_Q4_K_M="${MODEL:-mlx-community/Qwen3.5-9B-MLX-4bit}"
-readonly MODEL_Q4_K_M_PATTERN="*Q4_K_M*"
-readonly MODEL_Q4_K_M_NAME="Qwen3.5-9B Q4_K_M"
-readonly PORT="${PORT:-8898}"
-readonly TEMP="${TEMP:-0.7}"
-readonly PROMPT_CONC="${PROMPT_CONC:-2}"
-readonly DECODE_CONC="${DECODE_CONC:-2}"
-readonly CONTEXT_WINDOW="${CONTEXT_WINDOW:-65536}"
-readonly MAX_RETRIES=5
-readonly RETRY_DELAY=5
+# Config
+MODEL="${MODEL:-mlx-community/Qwen3.5-9B-MLX-4bit}"
+PORT="${PORT:-8898}"
+TEMP="${TEMP:-0.7}"
+PROMPT_CONC="${PROMPT_CONC:-2}"
+DECODE_CONC="${DECODE_CONC:-2}"
+MAX_RETRIES=5
+RETRY_DELAY=5
 
-# Paths
-readonly CACHE_DIR="$HOME/.cache/mlx-community"
-readonly MODEL_CACHE="$CACHE_DIR/$MODEL"
-readonly LOG_FILE="$HOME/.cache/mlx-server.log"
+CACHE_DIR="$HOME/.cache/mlx-community"
+MODEL_CACHE="$CACHE_DIR/$MODEL"
+LOG_FILE="$HOME/.cache/mlx-server.log"
 
-# Available models
-declare -a AVAILABLE_MODELS=(
-    "mlx-community/Qwen3.5-9B-GGUF:Q4_K_M:Qwen3.5-9B Q4_K_M"
-    "mlx-community/Qwen3.5-9B-GGUF:Q5_K_M:Qwen3.5-9B Q5_K_M"
-    "mlx-community/Qwen3.6-35B-A3B-4bit:default:Qwen3.6-35B A3B"
-)
+SERVER_PID=""
 
-# Logging function
-log() {
-    local level="$1"
-    shift
-    local message="$*"
-    local timestamp
-    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    echo "[$timestamp] [$level] $message" | tee -a "$LOG_FILE"
-}
+log() { echo "[$(date +%H:%M:%S)] $*" | tee -a "$LOG_FILE"; }
+die() { log "ERROR: $*"; exit 1; }
 
-log_info() { log "INFO" "$*"; }
-log_warn() { log "WARN" "$*"; }
-log_error() { log "ERROR" "$*"; }
-
-# Cleanup function
+# Cleanup on exit
 cleanup() {
-    log_info "Server stopped gracefully"
-}
-trap cleanup EXIT
-
-# Check if port is in use
-port_in_use() {
-    lsof -ti:"$PORT" > /dev/null 2>&1
+    log "Shutting down"
+    [[ -n "$SERVER_PID" ]] && kill -TERM "$SERVER_PID" 2>/dev/null || true
+    free_port
 }
 
-# Kill process on port
-kill_port() {
+# Kill anything on our port
+free_port() {
     local pids
-    local max_attempts=30
-    local attempt=1
-    
     pids=$(lsof -ti:"$PORT" 2>/dev/null || true)
-    if [ -n "$pids" ]; then
-        log_warn "Terminating existing server on port $PORT (PIDs: $pids)..."
-        
-        while [ $attempt -le $max_attempts ]; do
-            # Kill all processes on this port
-            for pid in $pids; do
-                kill -9 "$pid" 2>/dev/null || true
-            done
-            
-            # Wait for port to be released
-            sleep 1
-            
-            # Re-check for processes
-            pids=$(lsof -ti:"$PORT" 2>/dev/null || true)
-            if [ -z "$pids" ]; then
-                log_info "Port $PORT is now free"
-                return 0
-            fi
-            
-            attempt=$((attempt + 1))
-            if [ $attempt -le $max_attempts ]; then
-                log_warn "Waiting for port $PORT to release (attempt $attempt/$max_attempts, remaining PIDs: $pids)..."
-            fi
-        done
-        
-        # Final aggressive cleanup - kill any remaining by process name
-        log_warn "Final cleanup - searching for mlx_lm processes..."
-        local mlx_pids
-        mlx_pids=$(pgrep -f "mlx_lm.server" 2>/dev/null || true)
-        for pid in $mlx_pids; do
-            log_warn "Killing MLX process $pid"
-            kill -9 "$pid" 2>/dev/null || true
-            sleep 0.5
-        done
-        
-        log_warn "Port $PORT still in use after cleanup attempts"
-    fi
+    [[ -z "$pids" ]] && return
+
+    log "Freeing port $PORT (PIDs: $pids)"
+    kill -9 $pids 2>/dev/null || true
+    sleep 1
 }
 
-# Download model with progress
-download_model() {
-    log_info "Model cache: $MODEL_CACHE"
-    log_info "Downloading model: $MODEL"
-    
-    # Create cache directory
+# Download model if missing
+ensure_model() {
+    [[ -d "$MODEL_CACHE" && -n "$(ls -A "$MODEL_CACHE" 2>/dev/null)" ]] && return
+
+    log "Downloading $MODEL"
     mkdir -p "$CACHE_DIR"
-    
-    # Check if model already exists
-    if [ -d "$MODEL_CACHE" ] && [ "$(ls -A "$MODEL_CACHE" 2>/dev/null)" ]; then
-        log_info "Model already cached, skipping download"
-        return 0
-    fi
-    
-    log_info "Fetching model files from HuggingFace..."
-    
-    # Download MLX model files
-    local required_files=(
+
+    local files=(
+        "config.json"
         "model-00001-of-00003.safetensors"
         "model-00002-of-00003.safetensors"
         "model-00003-of-00003.safetensors"
-        "config.json"
         "tokenizer.json"
         "tokenizer_config.json"
     )
-    
-    for file in "${required_files[@]}"; do
-        log_info "Downloading: $file"
+
+    for f in "${files[@]}"; do
+        log "  $f"
         uv run python3 -c "
-import huggingface_hub
-hf = huggingface_hub.HfApi()
-hf.hf_hub_download(
-    repo_id='$MODEL',
-    filename='$file',
-    cache_dir='$MODEL_CACHE',
-    local_dir_use_symlinks=False
-)
-" || {
-            log_error "Failed to download $file"
-            exit 1
-        }
+from huggingface_hub import hf_hub_download
+hf_hub_download('$MODEL', '$f', cache_dir='$MODEL_CACHE', local_dir_use_symlinks=False)
+" || die "Download failed: $f"
     done
-    
-    log_info "Model cached to: $MODEL_CACHE"
 }
 
-# Check Python environment
-check_environment() {
-    if [ ! -d ".venv" ]; then
-        log_warn "Virtual environment not found, creating..."
-        python3 -m venv .venv
-        source .venv/bin/activate
-        uv pip install -q uv
-    fi
-    
-    source .venv/bin/activate
-    
-    if ! command -v uv > /dev/null 2>&1; then
-        log_error "uv not found"
-        exit 1
-    fi
-    
-    if ! python -c "import mlx_lm" 2>/dev/null; then
-        log_info "Installing dependencies..."
-        uv add -q mlx-lm huggingface_hub
-    fi
+# Setup Python environment
+setup_env() {
+    command -v uv >/dev/null || die "uv not found - install from https://docs.astral.sh/uv"
+    uv sync --quiet 2>/dev/null || uv pip install -q mlx-lm huggingface_hub
 }
 
-# Start server
-start_server() {
-    log_info "Starting MLX server..."
-    log_info "Model: $MODEL"
-    log_info "Port: $PORT"
-    log_info "Temp: $TEMP"
-    log_info "Prompt concurrency: $PROMPT_CONC"
-    log_info "Decode concurrency: $DECODE_CONC"
-    log_info "Context window: $CONTEXT_WINDOW"
-    log_info "API: http://localhost:$PORT"
-    log_info "API generate: http://localhost:$PORT/api/generate"
-    
-    uv run --with mlx-lm mlx_lm.server \
+# Start the server
+run_server() {
+    log "Starting on port $PORT (temp=$TEMP, model=$MODEL)"
+    uv run mlx_lm.server \
         --model "$MODEL" \
         --host 0.0.0.0 \
         --port "$PORT" \
         --temp "$TEMP" \
         --prompt-concurrency "$PROMPT_CONC" \
-        --decode-concurrency "$DECODE_CONC"
+        --decode-concurrency "$DECODE_CONC" &
+
+    SERVER_PID=$!
+    wait "$SERVER_PID"
 }
 
-# Main function
 main() {
-    log_info "=========================================="
-    log_info "MLX Server Starting..."
-    log_info "=========================================="
-    
-    # Check and setup environment
-    check_environment
-    
-    # Download model if needed
-    download_model
-    
-    # Kill any existing server
-    kill_port
-    
-    # Ensure port is free (safety check)
-    if lsof -ti:"$PORT" > /dev/null 2>&1; then
-        log_warn "Port $PORT still occupied, waiting 3s..."
-        sleep 3
-    fi
-    
-    # Start server with crash restart logic
-    for ((i = 1; i <= MAX_RETRIES; i++)); do
-        log_info "Server start attempt $i/$MAX_RETRIES..."
-        
-        # Start server in background
-        start_server &
-        SERVER_PID=$!
-        
-        # Wait for server to be ready
-        sleep 2
-        
-        # Check if server is still running
-        if kill -0 $SERVER_PID 2>/dev/null; then
-            log_info "Server running on port $PORT (PID: $SERVER_PID)"
-            log_info "API available at http://localhost:$PORT"
-            log_info "Generate endpoint: http://localhost:$PORT/api/generate"
-            log_info "Keep this script running to keep server alive"
-            # Keep script alive to maintain server process
-            wait $SERVER_PID
-        fi
-        
-        log_warn "Server crashed, will retry in $RETRY_DELAY seconds..."
+    log "MLX Server"
+
+    # Kill any existing instance first
+    free_port
+
+    setup_env
+    ensure_model
+
+    # Restart loop
+    for i in $(seq 1 $MAX_RETRIES); do
+        log "Attempt $i/$MAX_RETRIES"
+        run_server || log "Crashed, retrying in ${RETRY_DELAY}s"
+        SERVER_PID=""
         sleep "$RETRY_DELAY"
-        
-        # Kill old process before retry
-        kill -9 $SERVER_PID 2>/dev/null || true
     done
-    
-    log_error "Server failed to start after $MAX_RETRIES attempts"
-    exit 1
+
+    die "Failed after $MAX_RETRIES attempts"
 }
 
+trap cleanup EXIT INT TERM
 main "$@"
