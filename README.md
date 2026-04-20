@@ -467,6 +467,25 @@ MODEL=mlx-community/Qwen3.5-9B-MLX-4bit TEMP=0.5 CONTEXT_WINDOW=32768 ./run.sh
 
 ---
 
+## 📊 Benchmarking
+
+To benchmark performance on different systems:
+
+1. Clone the benchmark suite:
+   ```bash
+   git clone https://github.com/kibotu/llm_context_benchmarks
+   ```
+
+2. Run the benchmark with your model:
+   ```bash
+   cd llm_context_benchmarks
+   uv run benchmark mlx mlx-community/Qwen3.5-9B-MLX-4bit
+   ```
+
+This will measure tokens/sec, memory usage, and latency across various context sizes.
+
+---
+
 ## 🤝 Contributing
 
 Contributions welcome! Please open issues and pull requests.
