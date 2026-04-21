@@ -20,7 +20,14 @@
         "mlx-community/Qwen3.5-9B-MLX-4bit": {
           "name": "Qwen3.5-9B-MLX-4bit",
           "limit": {
-            "context": 98304,
+            "context": 65536,
+            "output": 6000
+          }
+        },
+        "mlx-community/Qwen3.6-35B-A3B-mxfp4": {
+          "name": "Qwen3.6-35B-A3B-mxfp4",
+          "limit": {
+            "context": 32768,
             "output": 6000
           }
         }
@@ -33,7 +40,7 @@
   "compaction": {
     "auto": true,
     "prune": true,
-    "reserved": 16384
+    "reserved": 12288
   },
   "tools": {
     "write": true,

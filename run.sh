@@ -5,6 +5,7 @@ set -euo pipefail
 
 # Config
 MODEL="${MODEL:-mlx-community/Qwen3.5-9B-MLX-4bit}"
+# MODEL="${MODEL:-mlx-community/Qwen3.6-35B-A3B-mxfp4}"
 PORT="${PORT:-8898}"
 TEMP="${TEMP:-0.7}"
 PROMPT_CONC="${PROMPT_CONC:-2}"
