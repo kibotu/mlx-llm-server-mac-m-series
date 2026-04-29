@@ -4,12 +4,13 @@
 set -euo pipefail
 
 # Config
-MODEL="${MODEL:-mlx-community/Qwen3.5-9B-MLX-4bit}"
-# MODEL="${MODEL:-mlx-community/Qwen3.6-35B-A3B-mxfp4}"
+# MODEL="${MODEL:-mlx-community/Qwen3.5-9B-MLX-4bit}"
+MODEL="${MODEL:-mlx-community/gemma-4-e2b-it-OptiQ-4bit}"
 PORT="${PORT:-8898}"
 TEMP="${TEMP:-0.7}"
 PROMPT_CONC="${PROMPT_CONC:-2}"
 DECODE_CONC="${DECODE_CONC:-2}"
+MAX_TOKENS="${MAX_TOKENS:-8192}"
 MAX_RETRIES=5
 RETRY_DELAY=5
 
@@ -146,7 +147,8 @@ run_server() {
         --port "$PORT" \
         --temp "$TEMP" \
         --prompt-concurrency "$PROMPT_CONC" \
-        --decode-concurrency "$DECODE_CONC" &
+        --decode-concurrency "$DECODE_CONC"  \
+        --max-tokens "$MAX_TOKENS" &
 
     SERVER_PID=$!
     sleep 3

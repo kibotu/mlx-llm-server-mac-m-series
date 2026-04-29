@@ -17,6 +17,13 @@
         "chunkTimeout": 30000
       },
       "models": {
+        "mlx-community/gemma-4-e2b-it-OptiQ-4bit": {
+          "name": "gemma-4-e2b-it-OptiQ-4bit",
+          "limit": {
+            "context": 65536,
+            "output": 6000
+          }
+        },
         "mlx-community/Qwen3.5-9B-MLX-4bit": {
           "name": "Qwen3.5-9B-MLX-4bit",
           "limit": {
