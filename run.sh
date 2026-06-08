@@ -93,63 +93,41 @@ ensure_model() {
     log "Downloading $MODEL"
     mkdir -p "$CACHE_DIR"
 
-    local files=(
-        "config.json"
-        "tokenizer.json"
-        "tokenizer_config.json"
-        "special_tokens_map.json"
-        "added_tokens.json"
-        "generation_config.json"
-    )
-    
-    # Check for MLX model files
-    if [[ ! -f "$MODEL_CACHE/config.json" ]]; then
-        # Unsloth MLX format uses .mlx files instead of safetensors
-        log "Downloading MLX model files..."
+    # Download model if missing
+    if [[ ! -d "$MODEL_CACHE" || -z "$(ls -A "$MODEL_CACHE" 2>/dev/null)" ]]; then
+        log "Downloading $MODEL"
+        mkdir -p "$MODEL_CACHE"
         
-        # Download tokenizer and config files (skip if not available)
-        for f in "config.json" "tokenizer.json" "tokenizer_config.json"; do
-            log "  $f"
-            uv run python3 -c "
+        # Download model files using a simple Python script
+        uv run python3 -c "
 from huggingface_hub import hf_hub_download
-try:
-    hf_hub_download('$MODEL', '$f', cache_dir='$MODEL_CACHE', local_dir_use_symlinks=False)
-except Exception as e:
-    print(f'Skipping {f}: {e}')
-" || true
-        done
+import os
+
+model = '$MODEL'
+cache_dir = '$MODEL_CACHE'
+
+# List of files to download
+files = [
+    'config.json',
+    'tokenizer.json',
+    'tokenizer_config.json',
+    'model-00001-of-00004.mlx',
+    'model-00002-of-00004.mlx',
+    'model-00003-of-00004.mlx',
+    'model-00004-of-00004.mlx',
+]
+
+for f in files:
+    try:
+        hf_hub_download(model, f, cache_dir=cache_dir, local_dir_use_symlinks=False)
+        print(f'✓ {f}')
+    except Exception as e:
+        print(f'⚠ Skipping {f}: {e}')
         
-        for f in "special_tokens_map.json" "added_tokens.json"; do
-            log "  $f"
-            uv run python3 -c "
-from huggingface_hub import hf_hub_download
-try:
-    hf_hub_download('$MODEL', '$f', cache_dir='$MODEL_CACHE', local_dir_use_symlinks=False)
-except Exception as e:
-    print(f'Skipping {f}: {e}')
-" || true
-        done
+print('Download complete')
+" || die "Download failed"
         
-        # Download MLX model shards
-        local mlx_model_files=(
-            "model-00001-of-00004.mlx"
-            "model-00002-of-00004.mlx"
-            "model-00003-of-00004.mlx"
-            "model-00004-of-00004.mlx"
-        )
-        
-        for f in "${mlx_model_files[@]}"; do
-            log "  $f"
-            uv run python3 -c "
-from huggingface_hub import hf_hub_download
-try:
-    hf_hub_download('$MODEL', '$f', cache_dir='$MODEL_CACHE', local_dir_use_symlinks=False)
-except Exception as e:
-    print(f'Skipping {f}: {e}')
-" || true
-        done
-        
-        log "Model download complete"
+        log "Model size: $(du -sh "$MODEL_CACHE" | awk '{print $1}')"
     fi
 
     for f in "${files[@]}"; do
@@ -198,8 +176,7 @@ run_server() {
         --prompt-concurrency "$PROMPT_CONC" \
         --decode-concurrency "$DECODE_CONC" \
         --max-tokens "$MAX_TOKENS" \
-        --chat-template-args '{"preserve_thinking":true,"enable_thinking":true}' \
-        --metrics &
+        --chat-template-args '{"preserve_thinking":true,"enable_thinking":true}' &
 
     SERVER_PID=$!
     sleep 3
