@@ -5,7 +5,7 @@ set -euo pipefail
 
 # Config
 MODEL="${MODEL:-unsloth/Qwen3.6-35B-A3B-UD-MLX-4bit}"
-PORT="${PORT:-8898}"
+PORT="${PORT:-8080}"
 TEMP="${TEMP:-0.7}"
 PROMPT_CONC="${PROMPT_CONC:-2}"
 DECODE_CONC="${DECODE_CONC:-2}"
@@ -101,20 +101,23 @@ ensure_model() {
         # Download model files using a simple Python script
         uv run python3 -c "
 from huggingface_hub import hf_hub_download
-import os
 
 model = '$MODEL'
 cache_dir = '$MODEL_CACHE'
 
-# List of files to download
+# List of files to download (based on actual unsloth model)
 files = [
     'config.json',
     'tokenizer.json',
     'tokenizer_config.json',
-    'model-00001-of-00004.mlx',
-    'model-00002-of-00004.mlx',
-    'model-00003-of-00004.mlx',
-    'model-00004-of-00004.mlx',
+    'chat_template.jinja',
+    'model-00001-of-00005.safetensors',
+    'model-00002-of-00005.safetensors',
+    'model-00003-of-00005.safetensors',
+    'model-00004-of-00005.safetensors',
+    'model-00005-of-00005.safetensors',
+    'model.safetensors.index.json',
+    'processor_config.json',
 ]
 
 for f in files:
