@@ -4,13 +4,15 @@
 set -euo pipefail
 
 # Config
-# MODEL="${MODEL:-mlx-community/Qwen3.5-9B-MLX-4bit}"
-MODEL="${MODEL:-mlx-community/gemma-4-e2b-it-OptiQ-4bit}"
+MODEL="${MODEL:-mlx-community/Qwen3.6-35B-A3B-6bit}"
 PORT="${PORT:-8898}"
 TEMP="${TEMP:-0.7}"
 PROMPT_CONC="${PROMPT_CONC:-2}"
 DECODE_CONC="${DECODE_CONC:-2}"
 MAX_TOKENS="${MAX_TOKENS:-8192}"
+# Mac M2 optimizations for A3B (Adaptive 3-bit) quantized model
+THREADS="${THREADS:-8}"         # M2 has 8-10 CPU cores, limit to avoid oversubscription
+KV_CACHE_TYPE="${KV_CACHE_TYPE:-q8_0}"  # Use q8_0 for KV cache to match A3B precision
 MAX_RETRIES=5
 RETRY_DELAY=5
 
@@ -101,6 +103,8 @@ ensure_model() {
         "model-00003-of-00003.safetensors"
         "tokenizer.json"
         "tokenizer_config.json"
+        "added_tokens.json"
+        "special_tokens_map.json"
     )
 
     for f in "${files[@]}"; do
@@ -143,12 +147,25 @@ run_server() {
 
     uv run mlx_lm.server \
         --model "$MODEL" \
+        -c ${CONTEXT_SIZE:-262144} \
+        -ctk ${KV_CACHE_TYPE:-q8_0} \
+        -ctv ${KV_CACHE_TYPE:-q8_0} \
+        -ngl 99 \
+        -t ${THREADS:-8} \
+        -b ${BATCH_SIZE:-2048} \
+        -ub ${UBATCH_SIZE:-2048} \
         --host 0.0.0.0 \
         --port "$PORT" \
         --temp "$TEMP" \
         --prompt-concurrency "$PROMPT_CONC" \
-        --decode-concurrency "$DECODE_CONC"  \
-        --max-tokens "$MAX_TOKENS" &
+        --decode-concurrency "$DECODE_CONC" \
+        --max-tokens "$MAX_TOKENS" \
+        --flash-attn on \
+        --parallel 1 \
+        --cont-batching \
+        --no-mmap \
+        --mlock \
+        --metrics &
 
     SERVER_PID=$!
     sleep 3

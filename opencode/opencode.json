@@ -31,11 +31,11 @@
             "output": 6000
           }
         },
-        "mlx-community/Qwen3.6-35B-A3B-mxfp4": {
-          "name": "Qwen3.6-35B-A3B-mxfp4",
+        "mlx-community/Qwen3.6-35B-A3B-6bit": {
+          "name": "Qwen3.6-35B-A3B-6bit",
           "limit": {
-            "context": 32768,
-            "output": 6000
+            "context": 262144,
+            "output": 8192
           }
         }
       }
