@@ -109,24 +109,32 @@ ensure_model() {
     # Check for MLX model files
     if [[ ! -f "$MODEL_CACHE/config.json" ]]; then
         # Unsloth MLX format uses .mlx files instead of safetensors
-        local mlx_files=(
-            "config.json"
-            "tokenizer.json"
-            "tokenizer_config.json"
-            "special_tokens_map.json"
-            "added_tokens.json"
-        )
+        log "Downloading MLX model files..."
         
-        for f in "${mlx_files[@]}"; do
+        # Download tokenizer and config files (skip if not available)
+        for f in "config.json" "tokenizer.json" "tokenizer_config.json"; do
             log "  $f"
             uv run python3 -c "
 from huggingface_hub import hf_hub_download
-hf_hub_download('$MODEL', '$f', cache_dir='$MODEL_CACHE', local_dir_use_symlinks=False)
-" || die "Download failed: $f"
+try:
+    hf_hub_download('$MODEL', '$f', cache_dir='$MODEL_CACHE', local_dir_use_symlinks=False)
+except Exception as e:
+    print(f'Skipping {f}: {e}')
+" || true
+        done
+        
+        for f in "special_tokens_map.json" "added_tokens.json"; do
+            log "  $f"
+            uv run python3 -c "
+from huggingface_hub import hf_hub_download
+try:
+    hf_hub_download('$MODEL', '$f', cache_dir='$MODEL_CACHE', local_dir_use_symlinks=False)
+except Exception as e:
+    print(f'Skipping {f}: {e}')
+" || true
         done
         
         # Download MLX model shards
-        log "Downloading MLX model shards..."
         local mlx_model_files=(
             "model-00001-of-00004.mlx"
             "model-00002-of-00004.mlx"
@@ -138,9 +146,14 @@ hf_hub_download('$MODEL', '$f', cache_dir='$MODEL_CACHE', local_dir_use_symlinks
             log "  $f"
             uv run python3 -c "
 from huggingface_hub import hf_hub_download
-hf_hub_download('$MODEL', '$f', cache_dir='$MODEL_CACHE', local_dir_use_symlinks=False)
-" || die "Download failed: $f"
+try:
+    hf_hub_download('$MODEL', '$f', cache_dir='$MODEL_CACHE', local_dir_use_symlinks=False)
+except Exception as e:
+    print(f'Skipping {f}: {e}')
+" || true
         done
+        
+        log "Model download complete"
     fi
 
     for f in "${files[@]}"; do
