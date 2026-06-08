@@ -10,10 +10,6 @@ TEMP="${TEMP:-0.7}"
 PROMPT_CONC="${PROMPT_CONC:-2}"
 DECODE_CONC="${DECODE_CONC:-2}"
 MAX_TOKENS="${MAX_TOKENS:-8192}"
-# Mac M2 optimizations for Unsloth MLX 4-bit model
-THREADS="${THREADS:-8}"         # M2 has 8-10 CPU cores, limit to avoid oversubscription
-KV_CACHE_TYPE="${KV_CACHE_TYPE:-q8_0}"  # Use q8_0 for KV cache
-CONTEXT_SIZE="${CONTEXT_SIZE:-262144}"  # Native 256K context
 MAX_RETRIES=5
 RETRY_DELAY=5
 
@@ -196,24 +192,13 @@ run_server() {
 
     uv run mlx_lm.server \
         --model "$MODEL" \
-        -c ${CONTEXT_SIZE:-262144} \
-        -ctk ${KV_CACHE_TYPE:-q8_0} \
-        -ctv ${KV_CACHE_TYPE:-q8_0} \
-        -ngl 99 \
-        -t ${THREADS:-8} \
-        -b ${BATCH_SIZE:-2048} \
-        -ub ${UBATCH_SIZE:-2048} \
         --host 0.0.0.0 \
         --port "$PORT" \
         --temp "$TEMP" \
         --prompt-concurrency "$PROMPT_CONC" \
         --decode-concurrency "$DECODE_CONC" \
         --max-tokens "$MAX_TOKENS" \
-        --flash-attn on \
-        --parallel 1 \
-        --cont-batching \
-        --no-mmap \
-        --mlock \
+        --chat-template-args '{"preserve_thinking":true,"enable_thinking":true}' \
         --metrics &
 
     SERVER_PID=$!
