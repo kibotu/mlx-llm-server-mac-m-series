@@ -2,7 +2,7 @@
 # Test script for MLX API server
 set -euo pipefail
 
-API_URL="${API_URL:-http://localhost:8898/v1/chat/completions}"
+API_URL="${API_URL:-http://localhost:8080/v1/chat/completions}"
 
 log() {
     echo "[$(date +%H:%M:%S)] $*"
@@ -11,7 +11,7 @@ log() {
 test_health() {
     log "Testing health endpoint..."
     local resp
-    resp=$(curl -s "http://localhost:8898/v1/models" 2>&1)
+    resp=$(curl -s "http://localhost:8080/v1/models" 2>&1)
     
     if echo "$resp" | grep -q '"data"'; then
         log "✓ Health check passed"
@@ -25,7 +25,7 @@ test_health() {
 test_chat() {
     log "Testing chat endpoint..."
     local resp
-    resp=$(curl -s -X POST "$API_URL" \
+    resp=$(curl -s -X POST "${API_URL:-http://localhost:8080/v1/chat/completions}" \
         -H "Content-Type: application/json" \
         -d '{
             "model": "unsloth/Qwen3.6-35B-A3B-UD-MLX-4bit",
