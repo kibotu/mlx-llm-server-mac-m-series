@@ -4,15 +4,16 @@
 set -euo pipefail
 
 # Config
-MODEL="${MODEL:-mlx-community/Qwen3.6-35B-A3B-6bit}"
+MODEL="${MODEL:-unsloth/Qwen3.6-35B-A3B-UD-MLX-4bit}"
 PORT="${PORT:-8898}"
 TEMP="${TEMP:-0.7}"
 PROMPT_CONC="${PROMPT_CONC:-2}"
 DECODE_CONC="${DECODE_CONC:-2}"
 MAX_TOKENS="${MAX_TOKENS:-8192}"
-# Mac M2 optimizations for A3B (Adaptive 3-bit) quantized model
+# Mac M2 optimizations for Unsloth MLX 4-bit model
 THREADS="${THREADS:-8}"         # M2 has 8-10 CPU cores, limit to avoid oversubscription
-KV_CACHE_TYPE="${KV_CACHE_TYPE:-q8_0}"  # Use q8_0 for KV cache to match A3B precision
+KV_CACHE_TYPE="${KV_CACHE_TYPE:-q8_0}"  # Use q8_0 for KV cache
+CONTEXT_SIZE="${CONTEXT_SIZE:-262144}"  # Native 256K context
 MAX_RETRIES=5
 RETRY_DELAY=5
 
@@ -98,14 +99,49 @@ ensure_model() {
 
     local files=(
         "config.json"
-        "model-00001-of-00003.safetensors"
-        "model-00002-of-00003.safetensors"
-        "model-00003-of-00003.safetensors"
         "tokenizer.json"
         "tokenizer_config.json"
-        "added_tokens.json"
         "special_tokens_map.json"
+        "added_tokens.json"
+        "generation_config.json"
     )
+    
+    # Check for MLX model files
+    if [[ ! -f "$MODEL_CACHE/config.json" ]]; then
+        # Unsloth MLX format uses .mlx files instead of safetensors
+        local mlx_files=(
+            "config.json"
+            "tokenizer.json"
+            "tokenizer_config.json"
+            "special_tokens_map.json"
+            "added_tokens.json"
+        )
+        
+        for f in "${mlx_files[@]}"; do
+            log "  $f"
+            uv run python3 -c "
+from huggingface_hub import hf_hub_download
+hf_hub_download('$MODEL', '$f', cache_dir='$MODEL_CACHE', local_dir_use_symlinks=False)
+" || die "Download failed: $f"
+        done
+        
+        # Download MLX model shards
+        log "Downloading MLX model shards..."
+        local mlx_model_files=(
+            "model-00001-of-00004.mlx"
+            "model-00002-of-00004.mlx"
+            "model-00003-of-00004.mlx"
+            "model-00004-of-00004.mlx"
+        )
+        
+        for f in "${mlx_model_files[@]}"; do
+            log "  $f"
+            uv run python3 -c "
+from huggingface_hub import hf_hub_download
+hf_hub_download('$MODEL', '$f', cache_dir='$MODEL_CACHE', local_dir_use_symlinks=False)
+" || die "Download failed: $f"
+        done
+    fi
 
     for f in "${files[@]}"; do
         log "  $f"
